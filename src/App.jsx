@@ -1,83 +1,181 @@
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 function App() {
   const [blogs, setBlogs] = useState([]);
-  const [newBlog, setNewBlog] = useState({ title: '', content: '', author: '' });
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [view, setView] = useState('login'); // 'login', 'signup', or 'blog'
+  const [user, setUser] = useState(null);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const fetchBlogs = () => {
+    fetch('http://localhost:5000/api/blogs')
+      .then(res => res.json())
+      .then(data => setBlogs(data))
+      .catch(err => console.error('Error fetching blogs:', err));
+  };
 
   useEffect(() => {
-    fetch('https://mern-blog-backend.onrender.com/api/blogs')
-      .then((res) => res.json())
-      .then((data) => setBlogs(data))
-      .catch((err) => console.error('Failed to fetch blogs:', err));
-  }, []);
-
-  const handleChange = (e) => {
-    setNewBlog({ ...newBlog, [e.target.name]: e.target.value });
-  };
+    if (user) fetchBlogs();
+  }, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newBlog.title || !newBlog.content || !newBlog.author) return;
+    setIsSubmitting(true);
+    const newBlog = { title, content };
 
     try {
-      await fetch('https://mern-blog-backend.onrender.com/api/blogs', {
+      const response = await fetch('http://localhost:5000/api/blogs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newBlog),
       });
-      setNewBlog({ title: '', content: '', author: '' });
 
-      // Refresh blogs after posting
-      const res = await fetch('https://mern-blog-backend.onrender.com/api/blogs');
-      const data = await res.json();
-      setBlogs(data);
-    } catch (err) {
-      console.error('Error creating blog:', err);
+      if (response.ok) {
+        const savedBlog = await response.json();
+        setBlogs([savedBlog, ...blogs]);
+        setTitle('');
+        setContent('');
+      } else {
+        console.error('Failed to create blog');
+      }
+    } catch (error) {
+      console.error('Error submitting blog:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignup = (e) => {
+    e.preventDefault();
+    if (email && password) {
+      alert('Signup successful. Please login.');
+      setEmail('');
+      setPassword('');
+      setView('login');
+    }
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (email && password) {
+      setUser({ email });
+      setEmail('');
+      setPassword('');
+      setView('blog');
     }
   };
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>📝 MERN Blog</h1>
+    <div className="App" style={{ padding: '30px', maxWidth: '700px', margin: 'auto', fontFamily: 'Arial' }}>
+      {view === 'login' && (
+        <div>
+          <h2>🔐 Login</h2>
+          <form onSubmit={handleLogin}>
+            <input
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              style={{ marginBottom: '10px', padding: '10px', width: '100%' }}
+            />
+            <input
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              style={{ marginBottom: '10px', padding: '10px', width: '100%' }}
+            />
+            <button type="submit" style={{ padding: '10px 20px' }}>Login</button>
+          </form>
+          <p style={{ marginTop: '10px' }}>
+            Don't have an account? <span style={{ color: 'blue', cursor: 'pointer' }} onClick={() => setView('signup')}>Signup</span>
+          </p>
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: '2rem' }}>
-        <input
-          name="title"
-          placeholder="Title"
-          value={newBlog.title}
-          onChange={handleChange}
-          style={{ display: 'block', marginBottom: '1rem', padding: '0.5rem' }}
-        />
-        <textarea
-          name="content"
-          placeholder="Content"
-          value={newBlog.content}
-          onChange={handleChange}
-          style={{ display: 'block', marginBottom: '1rem', padding: '0.5rem' }}
-        />
-        <input
-          name="author"
-          placeholder="Author"
-          value={newBlog.author}
-          onChange={handleChange}
-          style={{ display: 'block', marginBottom: '1rem', padding: '0.5rem' }}
-        />
-        <button type="submit">Create Blog</button>
-      </form>
+      {view === 'signup' && (
+        <div>
+          <h2>📝 Signup</h2>
+          <form onSubmit={handleSignup}>
+            <input
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              style={{ marginBottom: '10px', padding: '10px', width: '100%' }}
+            />
+            <input
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              style={{ marginBottom: '10px', padding: '10px', width: '100%' }}
+            />
+            <button type="submit" style={{ padding: '10px 20px' }}>Signup</button>
+          </form>
+          <p style={{ marginTop: '10px' }}>
+            Already have an account? <span style={{ color: 'blue', cursor: 'pointer' }} onClick={() => setView('login')}>Login</span>
+          </p>
+        </div>
+      )}
 
-      <h2>📚 All Blogs</h2>
-      {blogs.length === 0 ? (
-        <p>No blogs available.</p>
-      ) : (
-        blogs.map((blog) => (
-          <div key={blog._id} style={{ border: '1px solid #ccc', padding: '1rem', marginBottom: '1rem' }}>
-            <h3>{blog.title}</h3>
-            <p>{blog.content}</p>
-            <p>
-              <em>Author: {blog.author}</em>
-            </p>
-          </div>
-        ))
+      {view === 'blog' && user && (
+        <>
+          <h1 style={{ textAlign: 'center' }}>Welcome, {user.email}!</h1>
+          <h2 style={{ textAlign: 'center' }}>📝 Blog Brew</h2>
+          <h3 style={{ textAlign: 'center', marginBottom: '20px' }}>“Your Space. Your Stories. Just Brew It.”</h3>
+          <button onClick={() => setView('login')} style={{ float: 'right', marginBottom: '10px' }}>Logout</button>
+
+          <form onSubmit={handleSubmit} style={{ marginBottom: '30px' }}>
+            <input
+              type="text"
+              placeholder="Enter Blog Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              style={{ padding: '10px', width: '100%', marginBottom: '10px' }}
+            />
+            <textarea
+              placeholder="Enter Blog Content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              required
+              rows="5"
+              style={{ padding: '10px', width: '100%', marginBottom: '10px', resize: 'vertical' }}
+            />
+            <button type="submit" disabled={isSubmitting} style={{ padding: '10px 20px' }}>
+              {isSubmitting ? 'Publishing...' : 'Publish'}
+            </button>
+          </form>
+
+          {blogs.length > 0 ? (
+            blogs.map((blog) => (
+              <div key={blog._id} style={{
+                border: '1px solid #ddd',
+                padding: '15px',
+                marginBottom: '15px',
+                borderRadius: '8px',
+                backgroundColor: '#f9f9f9'
+              }}>
+                <h3 style={{ marginBottom: '5px' }}>{blog.title}</h3>
+                <p style={{ whiteSpace: 'pre-line' }}>{blog.content}</p>
+                <p style={{ fontSize: '12px', color: '#777', marginTop: '10px' }}>
+                  🕒 {new Date(blog.createdAt).toLocaleString()}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p style={{ textAlign: 'center' }}>No blogs found.</p>
+          )}
+        </>
       )}
     </div>
   );
